@@ -9,6 +9,9 @@ var options = {
   columns: false
 }
 var parser = csv(options, getData);
+var writer = N3.Writer({
+  prefixes: { 'biodb': 'http://biodb.jp/mappings/' }
+});
 var sourceFrom;
 var sourceTo;
 function getData(err, doc) {
@@ -20,12 +23,26 @@ function getData(err, doc) {
       sourceFrom = row[0];
       sourceTo = row[1];
     }
+    else if(index == doc.length-1) {
+      console.log("On est à la fin du fichier !");
+      writer.end(function (error, result) {
+        console.log(result);
+      });
+    }
     else {
+      
       var idFrom = row[0];
       var idTo = row[1];
-      console.log(sourceFrom+sourceTo);
+      writer.addTriple({
+        subject:   'http://biodb.jp/mappings/'+sourceFrom+'/'+idFrom,
+        predicate: 'http://biodb.jp/mappings/to'+sourceTo,
+        object:    'http://biodb.jp/mappings/'+sourceTo+'/'+idTo
+      });
+
     }
+
 
      })
 }
+
 fstream.pipe(parser);
