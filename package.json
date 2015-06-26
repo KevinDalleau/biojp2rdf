@@ -1,0 +1,26 @@
+{
+  "name": "biojp2rdf",
+  "version": "1.0.0",
+  "description": "A tool to rdfize BioDB.js mappings",
+  "main": "link.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KevinDalleau/biojp2rdf.git"
+  },
+  "author": "Kevin Dalleau",
+  "license": "GNU General Public License",
+  "bugs": {
+    "url": "https://github.com/KevinDalleau/biojp2rdf/issues"
+  },
+  "homepage": "https://github.com/KevinDalleau/biojp2rdf",
+  "dependencies": {
+    "csv-streamify": "^2.0.0",
+    "n3": "^0.4.3",
+    "unzip": "^0.1.11",
+    "unzip2": "^0.2.5"
+  },
+  "devDependencies": {}
+}
