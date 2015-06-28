@@ -16,33 +16,47 @@ var options = { //Options for the csv parser
 }
 var download_dir = './downloads/';
 var extract_dir = './raw/';
+
 String.prototype.formatId = function() { //Removes the cco and other sources indications
   return this.replace(/^.+_(.+_id)\b/,"$1"); // Returns [source]_id
 };
 
-
 var zipPattern = new RegExp(/(.zip)$/);
+
+function recursiveUnzip(filesArray, i,callback) {
+  var f = filesArray[i];
+  if(i!=filesArray.length && f.match(zipPattern)){
+    console.log("Unzipping "+f);
+    var unzipStream = fs.createReadStream(download_dir+f).pipe(unzip.Extract({path: extract_dir}));
+    unzipStream.on('close',function () { //NOT finish, else the subsequent function won't launch
+        i++;
+        recursiveUnzip(filesArray,i,callback);
+    })
+  }
+  else {
+    callback();
+  }
+}
+
 fs.readdir(download_dir, function(err, files){
   if(err) {
     console.log(err);
   }
-
-  files.forEach(function(f){
-    if(f.match(zipPattern)){
-      fs.createReadStream(download_dir+f).pipe(unzip.Extract({path: extract_dir}));
-    }
+  recursiveUnzip(files,0,function () {
+    console.log("Unzipping done");
+    filesEvent.emit('files_unzipped');
   });
-  filesEvent.emit('files_unzipped');
-  console.log("Unzipping done");
 });
 
 filesEvent.on('files_unzipped', function () {
+  console.log("On va dans le dossier ./raw/");
   fs.readdir('./raw', function(err, files) {
     if(err) {
       console.err(err);
     }
     files.forEach(function(file) {
       filesList.push(file);
+      console.log(file)
     });
     filesEvent.emit('files_ready');
   });
