@@ -18,6 +18,10 @@ var writer = N3.Writer({
   prefixes: { 'biodb': 'http://biodb.jp/mappings/' }
 });
 
+String.prototype.formatId = function() { //Remove the cco and other sources indications
+  return this.replace(/^.+_(.+_id)\b/,"$1"); // Returns [source]_id
+};
+
 function writeToFile(data, fileName) {
   fs.writeFile("./"+fileName, data, function(err) {
     if(err) {
@@ -36,8 +40,8 @@ function getData(err, doc) {
   doc.forEach(function(row, index) {
 
     if(index == 0) {
-      sourceFrom = row[0];
-      sourceTo = row[1];
+      sourceFrom = row[0].formatId();
+      sourceTo = row[1].formatId();
     }
 
     else if(index == doc.length-1) {
@@ -51,7 +55,7 @@ function getData(err, doc) {
       var idTo = row[1];
       writer.addTriple({
         subject:   'http://biodb.jp/mappings/'+sourceFrom+'/'+idFrom,
-        predicate: 'http://biodb.jp/mappings/to'+sourceTo,
+        predicate: 'http://biodb.jp/mappings/to_'+sourceTo,
         object:    'http://biodb.jp/mappings/'+sourceTo+'/'+idTo
       });
 
