@@ -39,12 +39,12 @@ function getData(err, doc) {
 
   doc.forEach(function(row, index) {
 
-    if(index == 0) {
+    if(index == 0) { //First line : we get the headers
       sourceFrom = row[0].formatId();
       sourceTo = row[1].formatId();
     }
 
-    else if(index == doc.length-1) {
+    else if(index == doc.length-1) { // Last line
       writer.end(function (error, result) {
         writeToFile(result, sourceFrom+"_"+sourceTo+".ttl");
       });
@@ -57,6 +57,12 @@ function getData(err, doc) {
         subject:   'http://biodb.jp/mappings/'+sourceFrom+'/'+idFrom,
         predicate: 'http://biodb.jp/mappings/to_'+sourceTo,
         object:    'http://biodb.jp/mappings/'+sourceTo+'/'+idTo
+      });
+
+      writer.addTriple({
+        subject:   'http://biodb.jp/mappings/'+sourceTo+'/'+idTo,
+        predicate: 'http://biodb.jp/mappings/to_'+sourceFrom,
+        object:    'http://biodb.jp/mappings/'+sourceFrom+'/'+idFrom
       });
 
     }
