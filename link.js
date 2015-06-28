@@ -1,6 +1,9 @@
+#! /usr/bin/env node
+
 var fs = require('fs');
 var EventEmitter = require('events').EventEmitter;
 var csv = require('csv-streamify');
+var unzip = require('unzip2');
 var N3 = require('n3');
 var sourceFrom;
 var sourceTo;
@@ -11,21 +14,40 @@ var options = { //Options for the csv parser
   empty: '',
   columns: false
 }
-
-
+var download_dir = './downloads/';
+var extract_dir = './raw/';
 String.prototype.formatId = function() { //Removes the cco and other sources indications
   return this.replace(/^.+_(.+_id)\b/,"$1"); // Returns [source]_id
 };
 
-fs.readdir('./raw', function(err, files) {
+
+var zipPattern = new RegExp(/(.zip)$/);
+fs.readdir(download_dir, function(err, files){
   if(err) {
-    console.err(err);
+    console.log(err);
   }
-  files.forEach(function(file) {
-    filesList.push(file);
+
+  files.forEach(function(f){
+    if(f.match(zipPattern)){
+      fs.createReadStream(download_dir+f).pipe(unzip.Extract({path: extract_dir}));
+    }
   });
-  filesEvent.emit('files_ready');
+  filesEvent.emit('files_unzipped');
+  console.log("Unzipping done");
 });
+
+filesEvent.on('files_unzipped', function () {
+  fs.readdir('./raw', function(err, files) {
+    if(err) {
+      console.err(err);
+    }
+    files.forEach(function(file) {
+      filesList.push(file);
+    });
+    filesEvent.emit('files_ready');
+  });
+});
+
 
 filesEvent.on('files_ready',function() {
   filesList.forEach(function(filePath) {
@@ -41,7 +63,7 @@ function rdfize(path) {
     prefixes: { 'biodb': 'http://biodb.jp/mappings/' }
   });
 
-  
+
   function getData(err, doc) {
     if (err) {
       console.log("Erreur lors du parcours du fichier");
