@@ -16,6 +16,7 @@ var options = { //Options for the csv parser
 }
 var download_dir = './downloads/';
 var extract_dir = './raw/';
+var turtle_dir = './rdf/';
 
 String.prototype.formatId = function() { //Removes the cco and other sources indications
   return this.replace(/^.+_(.+_id)\b/,"$1"); // Returns [source]_id
@@ -25,13 +26,21 @@ var zipPattern = new RegExp(/(.zip)$/);
 
 function recursiveUnzip(filesArray, i,callback) {
   var f = filesArray[i];
-  if(i!=filesArray.length && f.match(zipPattern)){
-    console.log("Unzipping "+f);
-    var unzipStream = fs.createReadStream(download_dir+f).pipe(unzip.Extract({path: extract_dir}));
-    unzipStream.on('close',function () { //NOT finish, else the subsequent function won't launch
-        i++;
-        recursiveUnzip(filesArray,i,callback);
-    })
+  var unzipStream;
+  if(i!=filesArray.length){
+    if(f.match(zipPattern)) {
+      unzipStream = fs.createReadStream(download_dir+f).pipe(unzip.Extract({path: extract_dir}));
+      console.log("Unzipping "+f);
+      unzipStream.on('close',function () { //NOT finish, else the subsequent function won't launch
+          i++;
+          recursiveUnzip(filesArray,i,callback);
+      })
+    }
+    else {
+      i++;
+      recursiveUnzip(filesArray, i, callback);
+    }
+
   }
   else {
     callback();
@@ -50,13 +59,16 @@ fs.readdir(download_dir, function(err, files){
 
 filesEvent.on('files_unzipped', function () {
   console.log("On va dans le dossier ./raw/");
-  fs.readdir('./raw', function(err, files) {
+  fs.readdir('./raw/', function(err, files) {
     if(err) {
       console.err(err);
     }
+    console.log(files);
     files.forEach(function(file) {
-      filesList.push(file);
-      console.log(file)
+      if(!file.indexOf('.') == 0 && !file.indexOf('_')==0) { //To avoid getting the hidden files and weird Mac OS stuff
+        filesList.push(file);
+        console.log(file)
+      }
     });
     filesEvent.emit('files_ready');
   });
@@ -64,26 +76,40 @@ filesEvent.on('files_unzipped', function () {
 
 
 filesEvent.on('files_ready',function() {
-  filesList.forEach(function(filePath) {
-  rdfize(filePath);
-  });
+    rdfize(filesList, 0, function() {
+      console.log("RDFISATION terminée");
+    });
 });
 
-function rdfize(path) {
-  var fstream = fs.createReadStream('./raw/'+path);
-  var parser = csv(options, getData);
-  fstream.pipe(parser);
+function rdfize(filesListArray, i, callback) {
+  var path = filesListArray[i];
+  var fstream;
+  var parser;
+  if(i!=filesListArray.length) {
+    fstream = fs.createReadStream('./raw/'+path);
+    parser = csv(options, getData); //With only this callback, files bigger than 20 - 40 kb blocks everything. Hence the stream below
+
+    parser.on('readable', function() { // Weirdly enough, everything works with these few lines added...Because the console.log takes time ?
+      parser.setEncoding('utf8');
+      console.log(parser.read());
+    })
+    fstream.pipe(parser);
+
+  }
+  else {
+    callback();
+  }
   var writer = N3.Writer({
     prefixes: { 'biodb': 'http://biodb.jp/mappings/' }
   });
 
 
   function getData(err, doc) {
+    console.log(doc.length);
     if (err) {
       console.log("Erreur lors du parcours du fichier");
     }
     doc.forEach(function(row, index) {
-
       if(index == 0) { //First line : we get the headers
         sourceFrom = row[0].formatId();
         sourceTo = row[1].formatId();
@@ -113,13 +139,15 @@ function rdfize(path) {
       }
     })
   }
-}
-
-function writeToFile(data, fileName) {
-  fs.writeFile("./"+fileName, data, function(err) {
-    if(err) {
-      console.log(err);
-    }
-    console.log("Fichier créé : "+fileName);
-  });
+  function writeToFile(data, fileName) {
+    fs.writeFile(turtle_dir+fileName, data, function(err) {
+      if(err) {
+        console.log(err);
+      }
+      console.log("Fichier créé : "+fileName);
+      i++;
+      console.log(filesListArray);
+      rdfize(filesListArray, i, callback);
+    });
+  }
 }
